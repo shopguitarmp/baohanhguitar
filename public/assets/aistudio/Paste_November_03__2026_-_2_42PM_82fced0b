@@ -1,0 +1,1409 @@
+# PRD 01 – PRODUCT REQUIREMENT DOCUMENT
+## Hệ thống quản lý kho hàng và bảo hành điện tử – Single Store ERP Mini
+
+| Thuộc tính | Giá trị |
+|---|---|
+| Project Name | Inventory & Warranty Management System |
+| Project Type | Web Application |
+| Version | 1.0 |
+| Document Status | Draft for Review |
+| Business Model | Single Retail Store |
+| Warehouse Model | One Active Warehouse |
+| Product Tracking | Serial Number + Quantity Tracking |
+| Warranty | Internal Management + Customer Portal |
+| Industry | Musical Instruments & Accessories |
+| Primary Language | Vietnamese |
+| Timezone | Asia/Ho_Chi_Minh |
+| Currency | VND |
+
+---
+
+# PHẦN I. TỔNG QUAN DỰ ÁN
+
+## 1.1. Mục tiêu dự án
+
+Xây dựng một hệ thống Web Application quản lý toàn diện hoạt động của cửa hàng kinh doanh nhạc cụ, bao gồm:
+
+- Quản lý danh mục sản phẩm.
+- Quản lý nhà cung cấp.
+- Quản lý nhập hàng.
+- Quản lý xuất hàng.
+- Quản lý tồn kho.
+- Quản lý Serial Number.
+- Quản lý đơn hàng bán.
+- Quản lý khách hàng.
+- Quản lý thanh toán.
+- Quản lý bảo hành điện tử.
+- Quản lý tiếp nhận và sửa chữa.
+- Quản lý linh kiện thay thế.
+- Quản lý nhân viên và phân quyền.
+- Quản lý báo cáo.
+- Quản lý nhật ký hoạt động.
+
+Hệ thống phải đảm bảo mọi nghiệp vụ có quan hệ dữ liệu rõ ràng, có khả năng truy xuất nguồn gốc và kiểm soát lịch sử.
+
+## 1.2. Mục tiêu kinh doanh
+
+1. Kiểm soát chính xác số lượng và giá trị tồn kho.
+2. Tránh thất thoát sản phẩm.
+3. Biết chính xác từng sản phẩm được nhập từ đâu và bán cho ai.
+4. Quản lý lịch sử mua hàng của khách hàng.
+5. Tự động hóa quá trình kích hoạt bảo hành.
+6. Cho phép khách hàng tự tra cứu bảo hành bằng QR Code.
+7. Kiểm soát quá trình sửa chữa và thay thế linh kiện.
+8. Giảm thời gian xử lý bảo hành.
+9. Kiểm soát quyền hạn nhân viên.
+10. Cung cấp dữ liệu chính xác để chủ cửa hàng ra quyết định kinh doanh.
+
+## 1.3. Phạm vi kinh doanh
+
+Hệ thống phục vụ cửa hàng bán lẻ nhạc cụ và phụ kiện.
+
+Các nhóm hàng:
+
+| Nhóm | Ví dụ |
+|---|---|
+| Guitar Acoustic | Guitar acoustic, guitar EQ |
+| Guitar Classic | Guitar classic |
+| Guitar phím lõm | Đàn guitar phím lõm |
+| Melodica | Kèn phím 32 phím, melodica |
+| Dây đàn | Alice, Elixir và các thương hiệu khác |
+| Phụ kiện guitar | Capo, dây đeo, bao đàn, chân đàn |
+| Thiết bị âm thanh | Amplifier, micro, loa, thiết bị xử lý âm thanh |
+
+Hệ thống cần cho phép thêm nhóm sản phẩm và thương hiệu mới mà không phải sửa cấu trúc database.
+
+## 1.4. Đối tượng sử dụng
+
+- Chủ cửa hàng.
+- Quản trị viên.
+- Quản lý cửa hàng.
+- Nhân viên kho.
+- Nhân viên bán hàng.
+- Nhân viên kế toán.
+- Nhân viên bảo hành.
+- Kỹ thuật viên.
+- Khách hàng.
+
+---
+
+# PHẦN II. KIẾN TRÚC HỆ THỐNG
+
+## 2.1. Kiến trúc tổng thể
+
+Sử dụng mô hình Modular Monolith.
+
+Frontend và Backend tách biệt về trách nhiệm, giao tiếp thông qua REST API.
+
+Backend được chia thành các module độc lập, có thể kiểm soát dependency giữa các module.
+
+## 2.2. Công nghệ
+
+### Frontend
+- Next.js.
+- React.
+- TypeScript.
+- Tailwind CSS.
+- shadcn/ui.
+- React Hook Form.
+- Zod.
+- TanStack Table.
+
+### Backend
+- NestJS.
+- Node.js.
+- TypeScript.
+- REST API.
+- Swagger/OpenAPI.
+- Prisma ORM.
+- BullMQ.
+
+### Database và hạ tầng
+- PostgreSQL.
+- Redis.
+- Docker.
+- Nginx.
+- S3-compatible Object Storage.
+- GitHub Actions.
+
+## 2.3. Quy tắc kiến trúc
+
+1. Frontend không được truy cập trực tiếp database.
+2. Mọi nghiệp vụ phải xử lý thông qua Backend.
+3. Backend phải xác thực quyền trước khi xử lý yêu cầu.
+4. Các thao tác nhiều bảng phải sử dụng transaction.
+5. Các chứng từ đã xác nhận không được chỉnh sửa trực tiếp.
+6. Dữ liệu quan trọng phải có audit log.
+7. Database phải có khóa ngoại và các ràng buộc cần thiết.
+8. Các thao tác có khả năng gửi lặp phải hỗ trợ idempotency.
+9. Các module không được tự ý ghi dữ liệu vào bảng nghiệp vụ của module khác.
+10. Phải có cơ chế backup và restore database.
+
+---
+
+# PHẦN III. DANH SÁCH MODULE
+
+## 3.1. Module Dashboard
+
+Mục đích: Cung cấp cái nhìn tổng quan hoạt động cửa hàng.
+
+Chức năng:
+
+- Tổng doanh thu hôm nay.
+- Tổng doanh thu tháng.
+- Số đơn hàng.
+- Số lượng sản phẩm đang tồn.
+- Giá trị tồn kho.
+- Sản phẩm sắp hết hàng.
+- Sản phẩm tồn lâu.
+- Số lượng đơn bảo hành đang xử lý.
+- Số lượng bảo hành sắp hết hạn.
+- Số lượng phiếu sửa chữa chưa hoàn tất.
+- Biểu đồ doanh thu.
+- Biểu đồ sản phẩm bán chạy.
+- Biểu đồ tình hình bảo hành.
+
+Bộ lọc:
+
+- Hôm nay.
+- Hôm qua.
+- 7 ngày gần nhất.
+- 30 ngày gần nhất.
+- Tháng hiện tại.
+- Tháng trước.
+- Khoảng ngày tùy chỉnh.
+
+Dashboard phải lọc dữ liệu theo quyền và phạm vi được phép xem.
+
+## 3.2. Module Authentication
+
+Chức năng:
+
+- Đăng nhập.
+- Đăng xuất.
+- Đổi mật khẩu.
+- Quên mật khẩu.
+- Khôi phục mật khẩu.
+- Quản lý phiên đăng nhập.
+- Thu hồi phiên đăng nhập.
+- Khóa tài khoản.
+- Kiểm tra trạng thái tài khoản.
+
+Quy tắc:
+
+- Tài khoản bị khóa không được đăng nhập.
+- Mật khẩu phải được hash bằng thuật toán phù hợp.
+- Cookie phiên phải có Secure, HttpOnly và SameSite phù hợp.
+- Không lưu mật khẩu dạng văn bản.
+- Phải có cơ chế giới hạn số lần đăng nhập sai.
+- Các hành động đăng nhập quan trọng phải được ghi log.
+
+## 3.3. Module User & Role Permission
+
+Quản lý:
+
+- Nhân viên.
+- Vai trò.
+- Quyền hạn.
+- Phạm vi dữ liệu.
+- Trạng thái tài khoản.
+
+Các vai trò mặc định:
+
+1. Super Admin.
+2. Owner.
+3. Store Manager.
+4. Warehouse Manager.
+5. Warehouse Staff.
+6. Sales Manager.
+7. Sales Staff.
+8. Accountant.
+9. Warranty Staff.
+10. Technician.
+
+Phân quyền theo:
+
+- Module.
+- Menu.
+- Page.
+- Action.
+- API.
+- Data Scope.
+
+Các quyền cơ bản:
+
+- View.
+- Create.
+- Edit.
+- Delete Draft.
+- Submit.
+- Approve.
+- Reject.
+- Confirm.
+- Cancel.
+- Export.
+- Print.
+
+Không cho phép nhân viên thực hiện chức năng chỉ bằng cách gọi trực tiếp API khi không có quyền.
+
+## 3.4. Module Product Management
+
+Quản lý:
+
+- Danh mục sản phẩm.
+- Thương hiệu.
+- Sản phẩm.
+- Biến thể.
+- SKU.
+- Barcode.
+- Serial Tracking.
+- Quantity Tracking.
+- Giá nhập.
+- Giá bán.
+- Giá bán khuyến mãi.
+- Hình ảnh.
+- Mô tả.
+- Thông số kỹ thuật.
+- Trạng thái kinh doanh.
+
+Thông tin sản phẩm:
+
+- Product ID.
+- Product Name.
+- SKU.
+- Barcode.
+- Category ID.
+- Brand ID.
+- Unit ID.
+- Tracking Type.
+- Cost Price.
+- Selling Price.
+- Minimum Stock.
+- Warranty Policy ID mặc định.
+- Product Description.
+- Product Images.
+- Status.
+
+Tracking Type:
+
+- SERIAL: Quản lý từng sản phẩm bằng serial.
+- QUANTITY: Quản lý số lượng.
+- BATCH: Quản lý theo lô.
+
+Quy tắc:
+
+- SKU không được trùng.
+- Barcode không được trùng nếu thuộc cùng phạm vi mã hóa.
+- Không xóa sản phẩm đã phát sinh giao dịch.
+- Sản phẩm ngừng kinh doanh được chuyển sang INACTIVE.
+- Không cho phép thay đổi Tracking Type khi đã có giao dịch nếu chưa qua quy trình chuyển đổi dữ liệu được phê duyệt.
+
+## 3.5. Module Supplier Management
+
+Chức năng:
+
+- Danh sách nhà cung cấp.
+- Thêm nhà cung cấp.
+- Sửa thông tin.
+- Thông tin liên hệ.
+- Địa chỉ.
+- Mã số thuế nếu có.
+- Lịch sử mua hàng.
+- Công nợ.
+- Trạng thái nhà cung cấp.
+
+Không xóa nhà cung cấp đã có giao dịch.
+
+## 3.6. Module Purchasing
+
+Quy trình:
+
+Tạo đơn mua hàng → Duyệt đơn → Nhận hàng → Kiểm tra hàng → Ghi nhận Serial → Xác nhận nhập kho.
+
+Các chức năng:
+
+- Tạo Purchase Order.
+- Thêm sản phẩm.
+- Nhập số lượng.
+- Nhập giá mua.
+- Chiết khấu.
+- Chi phí liên quan.
+- Nhận hàng từng phần.
+- Nhận hàng toàn bộ.
+- Kiểm tra hàng lỗi.
+- Ghi nhận serial.
+- In phiếu nhận hàng.
+- Trả hàng nhà cung cấp.
+
+Quy tắc:
+
+- Không được nhập kho khi chưa xác nhận phiếu nhận hàng.
+- Không được tạo serial trùng.
+- Không được nhập vượt số lượng được duyệt nếu chưa có phê duyệt ngoại lệ.
+- Phiếu nhận hàng phải liên kết với đơn mua hoặc nguồn nhập được phê duyệt.
+
+## 3.7. Module Inventory Management
+
+Các chức năng:
+
+- Tổng quan tồn kho.
+- Danh sách tồn kho.
+- Nhập kho.
+- Xuất kho.
+- Kiểm kê.
+- Điều chỉnh tồn kho.
+- Theo dõi Serial.
+- Lịch sử giao dịch.
+- Báo cáo tồn kho.
+
+Phân loại trạng thái tồn:
+
+- AVAILABLE.
+- RESERVED.
+- QUARANTINE.
+- IN_TRANSIT.
+- REPAIR.
+- RETURN_PENDING.
+
+Các nghiệp vụ xuất kho:
+
+- Xuất bán hàng.
+- Xuất đổi trả.
+- Xuất bảo hành.
+- Xuất sửa chữa.
+- Xuất trả nhà cung cấp.
+- Xuất nội bộ.
+- Xuất hủy.
+
+Quy tắc:
+
+- Không cho phép tồn kho âm.
+- Không cho phép xuất serial không thuộc kho.
+- Không cho phép xuất serial đã bán.
+- Không cho phép xuất serial đang được giữ chỗ.
+- Giao dịch kho phải có chứng từ nguồn.
+- Không được sửa giao dịch đã xác nhận.
+- Điều chỉnh tồn phải có lý do và người duyệt theo chính sách.
+- Chuyển kho phải có xác nhận xuất và nhận riêng biệt.
+
+## 3.8. Module Inventory Ledger
+
+Đây là module ghi nhận lịch sử biến động kho.
+
+Mỗi biến động phải ghi:
+
+- Transaction ID.
+- Transaction Type.
+- Source Document.
+- Product ID.
+- Serial ID nếu có.
+- Warehouse ID.
+- Quantity In.
+- Quantity Out.
+- Unit Cost.
+- Transaction Date.
+- Created By.
+- Posted At.
+
+Không được sửa hoặc xóa lịch sử ledger đã ghi sổ.
+
+Tồn kho được tổng hợp từ ledger và các trạng thái giữ chỗ, đồng thời có bảng số dư để tối ưu truy vấn.
+
+Phải có cơ chế đối soát số dư với lịch sử giao dịch.
+
+## 3.9. Module Sales Management
+
+Quy trình:
+
+Tạo đơn → Kiểm tra tồn → Giữ hàng → Chọn serial → Xác nhận thanh toán → Xuất kho → Ghi nhận giao hàng → Kích hoạt bảo hành.
+
+Chức năng:
+
+- Tạo đơn bán.
+- Chọn khách hàng.
+- Thêm sản phẩm.
+- Chọn serial.
+- Tính giá bán.
+- Chiết khấu.
+- Thuế nếu áp dụng.
+- Ghi nhận thanh toán.
+- Thanh toán một phần.
+- Thanh toán đủ.
+- Hủy đơn.
+- Trả hàng.
+- Đổi hàng.
+- In hóa đơn bán hàng.
+- Xem lịch sử.
+
+Quy tắc:
+
+- Không được bán sản phẩm không đủ tồn khả dụng.
+- Không được gán một serial cho hai đơn hàng bán đang có hiệu lực.
+- Không được xác nhận thanh toán vượt quy tắc cho phép.
+- Đơn đã hoàn tất không được sửa trực tiếp.
+- Hủy đơn phải xử lý giữ chỗ, serial và thanh toán tương ứng.
+- Bảo hành chỉ được kích hoạt khi giao dịch bán đáp ứng điều kiện của chính sách.
+
+## 3.10. Module Customer CRM
+
+Thông tin khách hàng:
+
+- Customer ID.
+- Full Name.
+- Phone.
+- Email.
+- Address.
+- Date Of Birth nếu cần.
+- Notes.
+- Customer Status.
+- Created At.
+
+Chức năng:
+
+- Thêm khách hàng.
+- Sửa thông tin.
+- Tìm kiếm.
+- Lọc khách hàng.
+- Xem lịch sử mua hàng.
+- Xem lịch sử bảo hành.
+- Xem lịch sử sửa chữa.
+- Ghi chú chăm sóc.
+- Tra cứu thông tin liên hệ.
+
+Số điện thoại cần có quy tắc chuẩn hóa và kiểm tra trùng phù hợp. Không tự động gộp khách hàng chỉ vì trùng tên hoặc số điện thoại.
+
+## 3.11. Module Warranty Management
+
+Đây là module trọng tâm.
+
+### A. Warranty Policy
+
+Quản lý chính sách:
+
+- Tên chính sách.
+- Mã chính sách.
+- Sản phẩm áp dụng.
+- Thương hiệu áp dụng.
+- Thời hạn.
+- Đơn vị thời gian.
+- Ngày bắt đầu hiệu lực.
+- Ngày kết thúc hiệu lực.
+- Điều kiện áp dụng.
+- Phạm vi bảo hành.
+- Các trường hợp loại trừ.
+- Điều kiện gia hạn.
+- Quy định đổi mới.
+- Quy định bảo hành tính phí.
+
+Phải hỗ trợ phiên bản chính sách.
+
+Khi phát sinh bảo hành, phải lưu snapshot của chính sách áp dụng. Thay đổi chính sách về sau không được làm thay đổi quyền lợi đã phát sinh.
+
+### B. Warranty Registration
+
+Tạo phiếu bảo hành khi sản phẩm được bán hợp lệ.
+
+Thông tin:
+
+- Warranty ID.
+- Warranty Code.
+- Customer ID.
+- Product ID.
+- Product Serial ID.
+- Sales Order ID.
+- Sales Order Item ID.
+- Purchase Date.
+- Activation Date.
+- Warranty Start Date.
+- Warranty End Date.
+- Policy Snapshot.
+- Warranty Status.
+- QR Token.
+
+Mỗi serial chỉ có một hồ sơ bảo hành hiện hành cho một vòng đời bán hợp lệ. Các lần bảo hành sửa chữa được lưu riêng.
+
+### C. Warranty QR
+
+Mỗi hồ sơ có một mã QR riêng.
+
+QR phải chứa URL tra cứu an toàn với token ngẫu nhiên, khó đoán.
+
+Không sử dụng ID tuần tự hoặc thông tin cá nhân trực tiếp làm token.
+
+Khách quét QR sẽ xem:
+
+- Tên sản phẩm.
+- Hình ảnh sản phẩm.
+- Serial.
+- Mã bảo hành.
+- Ngày mua.
+- Ngày kích hoạt.
+- Ngày hết hạn.
+- Trạng thái bảo hành.
+- Lịch sử xử lý được phép công khai.
+
+Không công khai địa chỉ, số điện thoại đầy đủ, giá mua hoặc thông tin cá nhân khác.
+
+### D. Customer Warranty Portal
+
+Khách hàng có thể:
+
+- Tra cứu bằng mã bảo hành.
+- Quét QR.
+- Xác thực thông tin cần thiết khi tra cứu nâng cao.
+- Gửi yêu cầu bảo hành.
+- Mô tả tình trạng lỗi.
+- Tải ảnh.
+- Tải video nếu được hỗ trợ.
+- Theo dõi tình trạng yêu cầu.
+- Xem lịch sử bảo hành được phép công khai.
+
+Không yêu cầu khách hàng có tài khoản quản trị nội bộ.
+
+### E. Warranty Claims
+
+Tiếp nhận:
+
+- Mã yêu cầu.
+- Khách hàng.
+- Sản phẩm.
+- Serial.
+- Warranty ID.
+- Ngày tiếp nhận.
+- Mô tả lỗi.
+- Hình ảnh.
+- Video.
+- Tình trạng tiếp nhận.
+- Nhân viên phụ trách.
+- Kết quả kiểm tra.
+
+Các trạng thái:
+
+SUBMITTED → RECEIVED → INSPECTING → AWAITING_APPROVAL → APPROVED / REJECTED → REPAIRING → QUALITY_CHECK → READY_FOR_PICKUP → COMPLETED.
+
+Các trạng thái ngoại lệ:
+
+- WAITING_PARTS.
+- WAITING_CUSTOMER.
+- CANCELLED.
+
+Mọi chuyển đổi phải được lưu lịch sử.
+
+### F. Repair Management
+
+Chức năng:
+
+- Tạo phiếu sửa chữa.
+- Phân công kỹ thuật viên.
+- Chẩn đoán lỗi.
+- Đề xuất phương án.
+- Ghi nhận linh kiện.
+- Ghi nhận công sửa chữa.
+- Ghi nhận chi phí.
+- Ghi nhận kết quả.
+- Kiểm tra chất lượng.
+- Bàn giao sản phẩm.
+
+Một yêu cầu bảo hành có thể phát sinh nhiều công việc sửa chữa tùy quy trình.
+
+### G. Warranty Return & Handover
+
+Ghi nhận:
+
+- Ngày hoàn tất.
+- Người giao.
+- Người nhận.
+- Biên bản bàn giao.
+- Hình ảnh sản phẩm.
+- Xác nhận của khách.
+- Kết quả xử lý.
+- Trạng thái hoàn tất.
+
+Nếu khách không đến nhận hàng, phiếu phải được giữ trạng thái chờ nhận và không tự động đóng.
+
+## 3.12. Module Notification
+
+Hỗ trợ:
+
+- Thông báo trong hệ thống.
+- Email.
+- SMS thông qua nhà cung cấp.
+- Zalo OA thông qua tích hợp chính thức nếu được cấu hình.
+- Thông báo yêu cầu bảo hành mới.
+- Thông báo trạng thái sửa chữa.
+- Thông báo bảo hành sắp hết hạn.
+- Thông báo hoàn tất sửa chữa.
+
+Các thông báo gửi thất bại phải có trạng thái và cơ chế gửi lại.
+
+Không được coi một thông báo là đã gửi thành công khi nhà cung cấp chưa xác nhận.
+
+## 3.13. Module Reporting
+
+Báo cáo:
+
+- Tồn kho.
+- Giá trị tồn kho.
+- Nhập kho.
+- Xuất kho.
+- Lịch sử serial.
+- Sản phẩm bán chạy.
+- Doanh thu.
+- Lợi nhuận gộp.
+- Khách hàng.
+- Bảo hành.
+- Sửa chữa.
+- Linh kiện thay thế.
+- Tỷ lệ lỗi theo sản phẩm.
+- Tỷ lệ lỗi theo thương hiệu.
+- Thời gian xử lý bảo hành.
+
+Báo cáo phải có bộ lọc ngày, sản phẩm, nhóm hàng và trạng thái.
+
+## 3.14. Module Audit Log
+
+Ghi nhận các hành động:
+
+- Đăng nhập.
+- Đăng xuất.
+- Tạo dữ liệu.
+- Sửa dữ liệu.
+- Duyệt chứng từ.
+- Từ chối chứng từ.
+- Xác nhận giao dịch.
+- Hủy chứng từ.
+- Điều chỉnh kho.
+- Thay đổi giá.
+- Gia hạn bảo hành.
+- Thay đổi quyền nhân viên.
+
+Thông tin log:
+
+- User ID.
+- Action.
+- Entity Type.
+- Entity ID.
+- Old Value.
+- New Value.
+- Timestamp.
+- IP Address khi có thể.
+- Request ID.
+
+Không cho phép nhân viên thông thường sửa hoặc xóa audit log.
+
+---
+
+# PHẦN IV. DATABASE REQUIREMENTS
+
+## 4.1. Nguyên tắc thiết kế
+
+Database sử dụng PostgreSQL.
+
+- UUID làm khóa chính cho các thực thể nghiệp vụ.
+- Foreign Key cho các quan hệ dữ liệu.
+- Unique Constraint cho mã định danh quan trọng.
+- Check Constraint cho dữ liệu số và trạng thái phù hợp.
+- Index cho các trường tìm kiếm thường xuyên.
+- Soft Delete chỉ áp dụng cho dữ liệu danh mục phù hợp.
+- Không soft delete chứng từ đã ghi sổ để thay thế việc đảo giao dịch.
+- Dùng Decimal/Numeric cho tiền tệ, không sử dụng Float.
+- Lưu thời gian theo chuẩn thống nhất và hiển thị theo Asia/Ho_Chi_Minh.
+- Có created_at, updated_at và created_by phù hợp cho các bảng nghiệp vụ.
+
+## 4.2. Danh sách bảng dự kiến
+
+### Nhóm 1: Authentication & Authorization
+
+1. users
+2. roles
+3. permissions
+4. user_roles
+5. role_permissions
+6. user_sessions
+7. password_reset_tokens
+
+### Nhóm 2: Organization & Settings
+
+8. branches
+9. warehouses
+10. warehouse_locations
+11. units
+12. document_sequences
+13. system_settings
+
+### Nhóm 3: Product Catalog
+
+14. categories
+15. brands
+16. products
+17. product_variants
+18. product_images
+19. product_barcodes
+20. product_warranty_policy_defaults
+
+### Nhóm 4: Supplier & Purchasing
+
+21. suppliers
+22. supplier_contacts
+23. purchase_orders
+24. purchase_order_items
+25. goods_receipts
+26. goods_receipt_items
+27. supplier_returns
+28. supplier_return_items
+
+### Nhóm 5: Inventory
+
+29. product_serials
+30. inventory_transactions
+31. inventory_transaction_items
+32. inventory_ledger
+33. stock_balances
+34. stock_reservations
+35. stock_transfers
+36. stock_transfer_items
+37. stock_counts
+38. stock_count_items
+39. stock_adjustments
+
+### Nhóm 6: Sales
+
+40. customers
+41. customer_addresses
+42. sales_orders
+43. sales_order_items
+44. sales_order_serials
+45. sales_payments
+46. sales_returns
+47. sales_return_items
+48. sales_shipments
+
+### Nhóm 7: Warranty
+
+49. warranty_policies
+50. warranty_policy_versions
+51. warranties
+52. warranty_claims
+53. warranty_events
+54. warranty_attachments
+55. warranty_extensions
+
+### Nhóm 8: Repair
+
+56. repair_orders
+57. repair_diagnostics
+58. repair_parts
+59. repair_tasks
+60. repair_history
+61. repair_handover_records
+
+### Nhóm 9: Supporting
+
+62. notifications
+63. notification_logs
+64. attachments
+65. audit_logs
+66. idempotency_keys
+
+Đây là danh sách bảng dự kiến, sẽ được tinh chỉnh khi thiết kế ERD. Không tạo bảng chỉ để tăng số lượng bảng; mỗi bảng phải có trách nhiệm dữ liệu rõ ràng.
+
+## 4.3. Các quan hệ database quan trọng
+
+### Product
+
+products 1:N product_serials.
+
+products 1:N product_variants.
+
+products 1:N product_images.
+
+products N:1 categories.
+
+products N:1 brands.
+
+### Purchasing
+
+suppliers 1:N purchase_orders.
+
+purchase_orders 1:N purchase_order_items.
+
+purchase_orders 1:N goods_receipts.
+
+goods_receipts 1:N goods_receipt_items.
+
+goods_receipt_items 1:N product_serials đối với sản phẩm SERIAL, theo số lượng nhận thực tế.
+
+### Inventory
+
+products 1:N inventory_ledger.
+
+warehouses 1:N stock_balances.
+
+product_serials 1:N serial movement history.
+
+inventory_transactions 1:N inventory_transaction_items.
+
+### Sales
+
+customers 1:N sales_orders.
+
+sales_orders 1:N sales_order_items.
+
+sales_order_items 1:N sales_order_serials.
+
+sales_orders 1:N sales_payments.
+
+### Warranty
+
+customers 1:N warranties.
+
+products 1:N warranties.
+
+product_serials 1:N warranty history qua các lần bán và hồ sơ hợp lệ.
+
+warranties 1:N warranty_claims.
+
+warranty_claims 1:N warranty_events.
+
+warranty_claims 1:N repair_orders khi có nhiều công việc sửa chữa.
+
+### Repair
+
+repair_orders 1:N repair_diagnostics.
+
+repair_orders 1:N repair_parts.
+
+repair_orders 1:N repair_history.
+
+repair_orders 1:N repair_handover_records.
+
+## 4.4. Ràng buộc dữ liệu bắt buộc
+
+1. Serial Number phải duy nhất theo phạm vi quy định.
+2. SKU phải duy nhất.
+3. Mã bảo hành phải duy nhất.
+4. Không được tạo Foreign Key đến bản ghi không tồn tại.
+5. Không cho phép quantity âm.
+6. Không cho phép giá trị tiền âm trừ nghiệp vụ điều chỉnh có kiểm soát.
+7. Không xuất serial đã bán.
+8. Không bán serial đang bị khóa hoặc cách ly.
+9. Không tạo bảo hành cho serial không có nguồn gốc hợp lệ.
+10. Không tạo yêu cầu bảo hành cho hồ sơ không tồn tại.
+11. Không đóng yêu cầu bảo hành khi chưa hoàn tất điều kiện bàn giao.
+12. Không thay đổi chính sách bảo hành đã được áp dụng cho hồ sơ cũ.
+13. Không sửa ledger đã ghi sổ.
+14. Không xóa chứng từ đã xác nhận.
+15. Các thao tác nhiều bảng phải bảo đảm atomic transaction.
+
+---
+
+# PHẦN V. BUSINESS WORKFLOW
+
+## 5.1. Quy trình nhập hàng
+
+1. Nhân viên tạo đơn mua.
+2. Chọn nhà cung cấp.
+3. Chọn sản phẩm.
+4. Nhập số lượng và giá mua.
+5. Gửi duyệt.
+6. Quản lý duyệt.
+7. Nhân viên nhận hàng.
+8. Kiểm tra tình trạng.
+9. Nhập Serial Number đối với sản phẩm SERIAL.
+10. Xác nhận phiếu nhận.
+11. Backend ghi nhận inventory transaction.
+12. Cập nhật stock balance.
+13. Cập nhật trạng thái serial.
+14. Ghi audit log.
+
+## 5.2. Quy trình bán hàng
+
+1. Nhân viên tạo đơn.
+2. Chọn khách hàng.
+3. Chọn sản phẩm.
+4. Kiểm tra tồn khả dụng.
+5. Giữ hàng.
+6. Chọn serial.
+7. Kiểm tra giá.
+8. Ghi nhận thanh toán.
+9. Xác nhận giao hàng.
+10. Xuất kho.
+11. Ghi nhận serial đã bán.
+12. Tạo hồ sơ bảo hành nếu đủ điều kiện.
+13. Sinh QR Code.
+14. Gửi thông tin bảo hành cho khách.
+15. Đóng đơn hàng.
+
+## 5.3. Quy trình đổi trả
+
+1. Tiếp nhận yêu cầu.
+2. Kiểm tra đơn bán.
+3. Kiểm tra serial.
+4. Kiểm tra điều kiện đổi trả.
+5. Phê duyệt.
+6. Tiếp nhận sản phẩm.
+7. Phân loại hàng còn bán được, hàng lỗi hoặc hàng chờ xử lý.
+8. Tạo chứng từ nhập trả.
+9. Điều chỉnh công nợ hoặc hoàn tiền.
+10. Xử lý bảo hành liên quan nếu cần.
+11. Lưu lịch sử.
+
+## 5.4. Quy trình bảo hành
+
+1. Khách tra cứu QR.
+2. Gửi yêu cầu bảo hành.
+3. Backend xác minh token.
+4. Kiểm tra hồ sơ bảo hành.
+5. Nhân viên tiếp nhận.
+6. Kiểm tra điều kiện.
+7. Kỹ thuật viên chẩn đoán.
+8. Quản lý duyệt phương án.
+9. Tiến hành sửa chữa.
+10. Xuất linh kiện nếu cần.
+11. Kiểm tra chất lượng.
+12. Bàn giao sản phẩm.
+13. Khách xác nhận nhận hàng.
+14. Đóng yêu cầu.
+15. Lưu toàn bộ lịch sử.
+
+---
+
+# PHẦN VI. TRẠNG THÁI NGHIỆP VỤ
+
+## 6.1. Purchase Order
+
+DRAFT → PENDING_APPROVAL → APPROVED → PARTIALLY_RECEIVED → RECEIVED.
+
+Ngoại lệ: REJECTED, CANCELLED.
+
+## 6.2. Sales Order
+
+DRAFT → CONFIRMED → PARTIALLY_PAID → PAID → PROCESSING → COMPLETED.
+
+Ngoại lệ: CANCELLED, RETURNED, PARTIALLY_RETURNED.
+
+Trạng thái thanh toán nên được quản lý riêng với trạng thái đơn hàng.
+
+## 6.3. Product Serial
+
+- IN_STOCK.
+- RESERVED.
+- SOLD.
+- RETURN_PENDING.
+- QUARANTINE.
+- IN_REPAIR.
+- RETURNED_TO_SUPPLIER.
+- DISPOSED.
+
+Trạng thái serial phải được thay đổi theo các giao dịch nghiệp vụ hợp lệ.
+
+## 6.4. Warranty
+
+- ACTIVE.
+- EXPIRED.
+- SUSPENDED.
+- CANCELLED.
+- VOID.
+
+Trạng thái hồ sơ bảo hành không được đồng nhất với trạng thái yêu cầu bảo hành.
+
+## 6.5. Warranty Claim
+
+- SUBMITTED.
+- RECEIVED.
+- INSPECTING.
+- AWAITING_APPROVAL.
+- APPROVED.
+- REJECTED.
+- REPAIRING.
+- WAITING_PARTS.
+- WAITING_CUSTOMER.
+- QUALITY_CHECK.
+- READY_FOR_PICKUP.
+- COMPLETED.
+- CANCELLED.
+
+Mỗi trạng thái phải có điều kiện chuyển đổi và quyền thực hiện riêng.
+
+---
+
+# PHẦN VII. SITEMAP VÀ CẤU TRÚC GIAO DIỆN
+
+## 7.1. Admin Portal
+
+/admin
+
+- /dashboard
+- /products
+- /products/create
+- /products/[id]
+- /products/[id]/edit
+- /categories
+- /brands
+- /suppliers
+- /purchasing/orders
+- /purchasing/receipts
+- /inventory
+- /inventory/stock
+- /inventory/serials
+- /inventory/receipts
+- /inventory/issues
+- /inventory/counts
+- /inventory/adjustments
+- /sales/orders
+- /sales/orders/create
+- /sales/orders/[id]
+- /sales/returns
+- /customers
+- /customers/[id]
+- /warranty/policies
+- /warranty/registrations
+- /warranty/claims
+- /warranty/claims/[id]
+- /warranty/repairs
+- /warranty/handovers
+- /reports
+- /users
+- /roles
+- /settings
+- /audit-logs
+
+## 7.2. Customer Portal
+
+/warranty
+
+- /warranty/lookup
+- /warranty/verify/[token]
+- /warranty/request
+- /warranty/claim/[tracking-token]
+- /warranty/track/[tracking-token]
+
+Các route công khai phải có cơ chế xác thực và giới hạn dữ liệu phù hợp. Token tra cứu và token theo dõi phải khó đoán, có thể thu hồi khi cần.
+
+## 7.3. Quy tắc UI
+
+Mỗi trang phải có:
+
+- Page Title.
+- Breadcrumb.
+- Search.
+- Filter.
+- Data Table.
+- Pagination.
+- Loading State.
+- Empty State.
+- Error State.
+- Permission Check.
+- Action Buttons.
+- Confirmation Dialog.
+- Form Validation.
+
+Các nút phải được phân loại:
+
+- Create.
+- Edit.
+- Delete Draft.
+- Approve.
+- Reject.
+- Confirm.
+- Cancel.
+- Print.
+- Export.
+- View Detail.
+
+Không hiển thị nút hành động không phù hợp với trạng thái chứng từ hoặc quyền nhân viên.
+
+---
+
+# PHẦN VIII. YÊU CẦU PHI CHỨC NĂNG
+
+## 8.1. Security
+
+- HTTPS bắt buộc khi triển khai production.
+- Mật khẩu hash an toàn.
+- RBAC.
+- Kiểm tra quyền ở Backend.
+- Bảo vệ CSRF phù hợp với cơ chế session.
+- Chống XSS và SQL Injection.
+- Rate Limiting.
+- Validate mọi dữ liệu đầu vào.
+- Kiểm soát upload file.
+- Không công khai dữ liệu khách hàng.
+- Có chính sách session expiration.
+- Có backup và khôi phục database.
+
+## 8.2. Performance
+
+Mục tiêu nghiệm thu ban đầu:
+
+- 95% API truy vấn thông thường phản hồi dưới 800ms trong môi trường nghiệm thu.
+- Tìm kiếm sản phẩm dưới 1 giây với dữ liệu kiểm thử thông thường.
+- Phân trang server-side.
+- Không tải toàn bộ dữ liệu vào trình duyệt.
+- Dashboard sử dụng truy vấn tổng hợp tối ưu.
+- Các tác vụ nặng phải xử lý nền.
+
+Các mục tiêu này áp dụng với môi trường, dữ liệu và tải thử nghiệm được thống nhất trước khi nghiệm thu.
+
+## 8.3. Availability
+
+- Có cơ chế backup định kỳ.
+- Có giám sát lỗi Backend.
+- Có giám sát database.
+- Có log tập trung.
+- Có quy trình khôi phục.
+- Có môi trường Development, Staging và Production.
+
+## 8.4. Usability
+
+- Giao diện tiếng Việt.
+- Responsive Desktop, Tablet, Mobile.
+- Form dễ thao tác.
+- Có xác nhận trước các hành động quan trọng.
+- Có thông báo thành công và thất bại.
+- Có tìm kiếm nhanh theo SKU, barcode, serial và mã chứng từ.
+
+---
+
+# PHẦN IX. ACCEPTANCE CRITERIA – TIÊU CHÍ NGHIỆM THU
+
+## 9.1. Product Management
+
+AC-001: Không tạo được hai sản phẩm có cùng SKU.
+
+AC-002: Không tạo được barcode trùng trong phạm vi được quy định.
+
+AC-003: Sản phẩm có thể cấu hình SERIAL hoặc QUANTITY.
+
+AC-004: Không được xóa sản phẩm đã có giao dịch.
+
+AC-005: Sản phẩm ngừng kinh doanh không xuất hiện trong danh sách sản phẩm được phép bán mới.
+
+## 9.2. Inventory
+
+AC-006: Nhập kho thành công phải cập nhật tồn kho đúng số lượng.
+
+AC-007: Không cho xuất quá số lượng khả dụng.
+
+AC-008: Không cho bán một serial đã được bán.
+
+AC-009: Giao dịch kho phải có nguồn chứng từ.
+
+AC-010: Hủy chứng từ đã ghi sổ phải tạo nghiệp vụ đảo hoặc điều chỉnh hợp lệ.
+
+AC-011: Tồn kho tổng hợp phải đối soát được với ledger.
+
+AC-012: Chuyển kho phải bảo đảm tổng số lượng không thay đổi, tính cả trạng thái đang vận chuyển.
+
+## 9.3. Sales
+
+AC-013: Đơn hàng phải liên kết với khách hàng hợp lệ hoặc khách lẻ theo cấu hình.
+
+AC-014: Không xác nhận bán khi không đủ hàng.
+
+AC-015: Không gán một serial cho nhiều giao dịch bán đang có hiệu lực.
+
+AC-016: Hủy đơn phải giải phóng tồn giữ chỗ.
+
+AC-017: Thanh toán phải lưu đầy đủ lịch sử.
+
+AC-018: Đơn hàng đã hoàn tất không được chỉnh sửa trực tiếp.
+
+## 9.4. Customer
+
+AC-019: Tìm kiếm được khách hàng bằng tên, số điện thoại hoặc mã khách hàng.
+
+AC-020: Xem được lịch sử đơn hàng.
+
+AC-021: Xem được lịch sử bảo hành theo quyền.
+
+AC-022: Khách hàng không được truy cập dữ liệu khách hàng khác.
+
+## 9.5. Warranty
+
+AC-023: Khi đơn bán đủ điều kiện được hoàn tất, hệ thống tạo hồ sơ bảo hành theo cấu hình.
+
+AC-024: Hồ sơ bảo hành phải liên kết được với đơn hàng, sản phẩm và serial.
+
+AC-025: Không tạo trùng hồ sơ bảo hành cho cùng một giao dịch bán và serial.
+
+AC-026: QR Code phải tra cứu đúng hồ sơ bảo hành.
+
+AC-027: QR Token không được cho phép suy đoán hồ sơ của khách khác.
+
+AC-028: Chính sách thay đổi không làm thay đổi snapshot của hồ sơ cũ.
+
+AC-029: Khách gửi yêu cầu bảo hành phải được ghi nhận thành công hoặc trả về lỗi rõ ràng.
+
+AC-030: Mọi lần thay đổi trạng thái phải được lưu lịch sử.
+
+AC-031: Không thể đóng yêu cầu bảo hành khi thiếu các bước bàn giao bắt buộc.
+
+AC-032: Khách hàng chỉ xem được các thông tin bảo hành được phép công khai.
+
+## 9.6. Repair
+
+AC-033: Phiếu sửa chữa phải liên kết với yêu cầu bảo hành hoặc nguồn sửa chữa hợp lệ.
+
+AC-034: Linh kiện sử dụng phải có nguồn xuất kho hợp lệ.
+
+AC-035: Kỹ thuật viên chỉ được cập nhật các nghiệp vụ được cấp quyền.
+
+AC-036: Hoàn tất sửa chữa phải có kết quả kiểm tra.
+
+AC-037: Bàn giao phải lưu người giao, người nhận và thời gian.
+
+## 9.7. Permission
+
+AC-038: Nhân viên không có quyền không truy cập được API tương ứng.
+
+AC-039: Ẩn nút trên Frontend không thay thế việc kiểm tra quyền Backend.
+
+AC-040: Nhân viên kho không được tự ý sửa dữ liệu giá vốn nếu không có quyền.
+
+AC-041: Thay đổi quyền phải được lưu audit log.
+
+## 9.8. Audit & System
+
+AC-042: Các hành động quan trọng phải có log.
+
+AC-043: Người dùng thông thường không thể sửa audit log.
+
+AC-044: Hệ thống phải xử lý được yêu cầu gửi lặp mà không tạo giao dịch trùng.
+
+AC-045: Backup phải khôi phục được trong môi trường kiểm thử.
+
+AC-046: Database phải bảo đảm các ràng buộc khóa ngoại và unique.
+
+AC-047: Các thao tác transaction phải rollback đầy đủ khi xảy ra lỗi giữa chừng.
+
+---
+
+# PHẦN X. KẾ HOẠCH TRIỂN KHAI
+
+## Phase 1 – Foundation
+
+- Khởi tạo dự án.
+- Authentication.
+- User Management.
+- RBAC.
+- Settings.
+- Product Catalog.
+- Supplier.
+
+## Phase 2 – Inventory Core
+
+- Purchase Orders.
+- Goods Receipts.
+- Inventory Ledger.
+- Stock Balances.
+- Serial Management.
+- Stock Adjustment.
+- Stock Count.
+
+## Phase 3 – Sales & CRM
+
+- Customer CRM.
+- Sales Orders.
+- Serial Assignment.
+- Payment.
+- Sales Returns.
+- Sales Reports.
+
+## Phase 4 – Warranty System
+
+- Warranty Policies.
+- Warranty Registration.
+- QR Code.
+- Customer Portal.
+- Warranty Claims.
+- Warranty Events.
+
+## Phase 5 – Repair Management
+
+- Repair Orders.
+- Technician Assignment.
+- Diagnostics.
+- Spare Parts.
+- Quality Control.
+- Handover.
+
+## Phase 6 – Reporting & Production
+
+- Dashboard.
+- Reports.
+- Audit Logs.
+- Notification.
+- Performance Optimization.
+- Security Testing.
+- Backup & Recovery.
+- Production Deployment.
+
+---
+
+# PHẦN XI. ĐIỀU KIỆN HOÀN THÀNH DỰ ÁN
+
+Dự án được xem là đủ điều kiện nghiệm thu khi:
+
+1. Tất cả module trong phạm vi được phê duyệt đã được triển khai.
+2. Các luồng nhập kho, bán hàng, xuất kho và bảo hành hoạt động xuyên suốt.
+3. Dữ liệu liên kết chính xác.
+4. Các tiêu chí nghiệm thu AC-001 đến AC-047 đạt yêu cầu.
+5. Không còn lỗi nghiêm trọng ảnh hưởng đến dữ liệu kho, thanh toán hoặc bảo hành.
+6. Phân quyền hoạt động chính xác.
+7. Có tài liệu API.
+8. Có tài liệu Database.
+9. Có tài liệu triển khai.
+10. Có bộ test tự động cho các nghiệp vụ quan trọng.
+11. Có cơ chế sao lưu và phục hồi được kiểm thử.
+12. Có hướng dẫn sử dụng cho nhân viên.
+
+---
+
+# PHẦN XII. CÁC GIẢ ĐỊNH VÀ NGOÀI PHẠM VI
+
+## Giả định
+
+- Giai đoạn đầu vận hành một cửa hàng và một kho chính.
+- Sản phẩm có serial được quản lý từng chiếc.
+- Sản phẩm không có serial được quản lý theo số lượng.
+- Tiền tệ mặc định là VND.
+- Ngôn ngữ giao diện mặc định là tiếng Việt.
+- Hệ thống bảo hành phục vụ cả nhân viên và khách hàng.
+- Dữ liệu khách hàng được quản lý tập trung.
+
+## Ngoài phạm vi giai đoạn đầu
+
+Các chức năng sau chưa phải yêu cầu bắt buộc:
+
+- Kế toán tổng hợp đầy đủ.
+- Khai báo thuế và lập báo cáo thuế.
+- Quản lý tiền lương.
+- Quản lý nhân sự chuyên sâu.
+- Đồng bộ đa sàn thương mại điện tử.
+- Quản lý chuỗi cửa hàng nhiều chi nhánh thực tế.
+- Ứng dụng mobile native.
+- AI dự báo tồn kho.
+
+Có thể bổ sung trong các phiên bản sau.
+
+---
+
+# KẾT LUẬN PRD 01
+
+Hệ thống được định hướng là một nền tảng quản lý thống nhất cho cửa hàng nhạc cụ, trong đó:
+
+- Product là trung tâm quản lý hàng hóa.
+- Serial là trung tâm truy xuất từng sản phẩm.
+- Inventory Ledger là trung tâm kiểm soát biến động kho.
+- Sales Order là căn cứ xác định giao dịch mua hàng.
+- Customer là trung tâm quản lý lịch sử khách hàng.
+- Warranty là trung tâm quản lý quyền lợi bảo hành.
+- Repair Order là trung tâm quản lý công việc sửa chữa.
+- Audit Log là trung tâm kiểm soát hoạt động nhân viên.
+
+Nguyên tắc thiết kế xuyên suốt:
+
+**Một nguồn dữ liệu – Một quy trình nghiệp vụ rõ ràng – Một lịch sử giao dịch có thể truy xuất – Không cho phép thao tác vượt quyền hoặc phá vỡ tính toàn vẹn dữ liệu.**
+
+Tài liệu PRD 01 là cơ sở để phát triển các tài liệu đặc tả kỹ thuật chi tiết tiếp theo.

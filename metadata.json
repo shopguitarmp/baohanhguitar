@@ -1,0 +1,8 @@
+{
+  "name": "GuitarMP ERP - Quản lý Nhạc Cụ & Bảo Hành Điện Tử",
+  "description": "Hệ thống quản lý sản phẩm nhạc cụ, đơn mua hàng, bán hàng POS, bảo hành điện tử QR Code, tiếp nhận bảo hành và cổng tra cứu khách hàng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
